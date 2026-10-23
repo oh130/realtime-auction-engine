@@ -45,6 +45,15 @@
   3. **503(과부하)**: `gemini-3.8-flash`(최신 모델)가 요청할 때마다 "high demand" 503을 반환 — 재시도 로직(최대 4번, 5/10/15초 간격)을 넣어도 계속 실패. 공식 모델 목록 문서(<https://ai.google.dev/gemini-api/docs/models>)에서 한 세대 이전 안정판인 `gemini-3.6-flash`로 바꾸니 바로 해결됨.
 - 최종적으로 PR #2에 AI가 실패한 테스트/원인(테스트 코드가 200을 기대하도록 잘못 작성됨)/수정 제안(코드 예시 포함)을 정확하게 분석해서 코멘트로 남기는 것까지 확인. 확인 끝나고 PR은 머지하지 않고 닫음(브랜치도 삭제) — 이 과정 자체가 발표에서 그대로 재현 가능한 시연 시나리오.
 
+## 9. break-lock 데모 (핵심 로직 회귀 탐지 시연)
+
+AI 코멘트 파이프라인이 "테스트 코드 오타" 수준이 아니라 **실제 핵심 로직(동시성 락) 회귀**도 잡아내는지 확인.
+
+- `break-lock` 브랜치에서 `BidService.placeBid()`의 `productRepository.findByIdForUpdate(productId)`(비관적 락)를 `productRepository.findById(productId)`(락 없음) 한 줄로 교체 → PR #3 생성(머지 금지).
+- Actions에서 `BidServiceConcurrencyTest.같은_금액으로_동시에_입찰하면_하나만_최고가로_확정된다()`가 **한 번에** 실패함(재실행 불필요): `expected: 1, but was: 7` — 락 없이 20명이 동시 입찰하면 7명이나 동시에 "성공" 처리됨.
+- AI 코멘트가 실제 코드 diff를 보지 않고 테스트 이름+실패 메시지만으로도 "동시성 제어(Race Condition) 미흡"을 정확히 진단하고, 원래 코드가 쓰던 바로 그 해법(`@Lock(LockModeType.PESSIMISTIC_WRITE)`, `SELECT ... FOR UPDATE`)까지 제안함.
+- 확인 끝나고 PR #3는 머지하지 않고 닫음 + 브랜치 삭제.
+
 ## 남은 것
 
 - Actions 로그에 `setup-java@v4` deprecated, Node.js 20 deprecated 경고가 뜨는데 동작엔 지장 없어서 지금은 안 고침 (나중에 `actions/setup-java@v5`로 올리면 사라짐).
