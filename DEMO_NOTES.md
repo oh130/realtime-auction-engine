@@ -36,10 +36,19 @@
 - GitHub Actions 확인: `test` job의 `Initialize containers`(postgres/redis) → `Run tests` → `Upload test result XML`까지 전부 ✓, 테스트가 통과했으므로 `AI triage on failure` 스텝은 설계대로 스킵(`-`)됨. 1m18s만에 전체 통과.
 - 확인 끝나고 PR은 머지 + 브랜치 삭제로 정리.
 
-## 8. 남은 것
+## 8. 실제 작동 확인 (일부러 테스트 깨뜨려서 시연)
 
-- `GEMINI_API_KEY`를 저장소 Secrets에 아직 등록 안 함 — AI 분석 스텝이 실제로 작동하는지는 "일부러 테스트를 깨뜨리는 PR"을 하나 만들어서 확인해야 함(다음 데모 때 시연용으로 남겨둠).
+- `GEMINI_API_KEY`를 저장소 Secrets에 등록(`gh secret set GEMINI_API_KEY`) — 발급은 https://aistudio.google.com/apikey (구글 계정만 있으면 됨, 카드 등록 불필요).
+- `demo/break-a-test` 브랜치에서 기존 테스트 하나를 일부러 깨뜨려(`isNotFound()` → `isOk()`) PR(#2)을 만들어 실제로 AI 코멘트가 달리는지 확인. 그 과정에서 겪은 문제들:
+  1. **모델명 문제**: 처음 쓴 `gemini-2.5-flash`가 "신규 사용자에게 더 이상 제공 안 됨(404)" 에러 — API 에러 메시지가 직접 `gemini-3.8-flash`로 바꾸라고 안내해줘서 교체.
+  2. **타임아웃**: 60초로는 부족해서 120초로 늘림.
+  3. **503(과부하)**: `gemini-3.8-flash`(최신 모델)가 요청할 때마다 "high demand" 503을 반환 — 재시도 로직(최대 4번, 5/10/15초 간격)을 넣어도 계속 실패. 공식 모델 목록 문서(<https://ai.google.dev/gemini-api/docs/models>)에서 한 세대 이전 안정판인 `gemini-3.6-flash`로 바꾸니 바로 해결됨.
+- 최종적으로 PR #2에 AI가 실패한 테스트/원인(테스트 코드가 200을 기대하도록 잘못 작성됨)/수정 제안(코드 예시 포함)을 정확하게 분석해서 코멘트로 남기는 것까지 확인. 확인 끝나고 PR은 머지하지 않고 닫음(브랜치도 삭제) — 이 과정 자체가 발표에서 그대로 재현 가능한 시연 시나리오.
+
+## 남은 것
+
 - Actions 로그에 `setup-java@v4` deprecated, Node.js 20 deprecated 경고가 뜨는데 동작엔 지장 없어서 지금은 안 고침 (나중에 `actions/setup-java@v5`로 올리면 사라짐).
+- `gemini-3.8-flash`(최신 모델)는 지금 시점에 과부하가 잦아서 안 쓰고 `gemini-3.6-flash`로 고정해둠 — 나중에 안정화되면 바꿔도 됨.
 
 ## 알아둘 점 / 한계
 
