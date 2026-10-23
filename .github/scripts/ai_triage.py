@@ -2,7 +2,7 @@
 """CI에서 테스트가 실패했을 때만 실행된다.
 
 build/test-results/test/*.xml(JUnit 포맷)에서 실패한 테스트 이름과 메시지만 추려
-OpenAI API에 보내고, 한국어로 받은 분석을 PR 코멘트로 남긴다.
+Gemini API(무료 등급, 카드 등록 불필요)에 보내고, 한국어로 받은 분석을 PR 코멘트로 남긴다.
 """
 import glob
 import json
@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 RESULTS_GLOB = "auction-engine/build/test-results/test/*.xml"
 MAX_DETAIL_LEN = 500
 MAX_FAILURES = 10
-MODEL = "gpt-4o-mini"
+MODEL = "gemini-2.5-flash"
 
 
 def collect_failures():
@@ -40,7 +40,7 @@ def collect_failures():
     return failures[:MAX_FAILURES]
 
 
-def call_openai(failures):
+def call_gemini(failures):
     failure_lines = "\n".join(f"- {f['test']}: {f['detail']}" for f in failures)
     prompt = (
         "다음은 CI에서 실패한 JUnit 테스트 목록이다. 한국어로, 아래 형식에 맞춰 간결하게 답하라.\n\n"
@@ -51,29 +51,26 @@ def call_openai(failures):
     )
 
     body = json.dumps({
-        "model": MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": "너는 Spring Boot/JUnit 기반 백엔드 테스트 실패를 분석해주는 어시스턴트다.",
-            },
-            {"role": "user", "content": prompt},
-        ],
+        "systemInstruction": {
+            "parts": [{"text": "너는 Spring Boot/JUnit 기반 백엔드 테스트 실패를 분석해주는 어시스턴트다."}]
+        },
+        "contents": [{"parts": [{"text": prompt}]}],
     }).encode("utf-8")
 
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
+        f"?key={os.environ['GEMINI_API_KEY']}"
+    )
     request = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions",
+        url,
         data=body,
-        headers={
-            "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
-            "Content-Type": "application/json",
-        },
+        headers={"Content-Type": "application/json"},
         method="POST",
     )
 
     with urllib.request.urlopen(request, timeout=60) as response:
         data = json.load(response)
-    return data["choices"][0]["message"]["content"]
+    return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def post_pr_comment(body):
@@ -92,9 +89,9 @@ def main():
         return
 
     try:
-        analysis = call_openai(failures)
+        analysis = call_gemini(failures)
     except urllib.error.HTTPError as e:
-        print(f"OpenAI API 호출 실패: {e.code} {e.read().decode(errors='ignore')}")
+        print(f"Gemini API 호출 실패: {e.code} {e.read().decode(errors='ignore')}")
         raise
 
     post_pr_comment(analysis)

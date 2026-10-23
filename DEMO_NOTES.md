@@ -16,8 +16,9 @@
 ## 3~4. 워크플로 + AI 분석 스크립트
 
 - `.github/workflows/test-ai-triage.yml`: `main`으로의 PR마다 postgres/redis 서비스 컨테이너를 띄우고 Java 21(temurin, gradle 캐시)로 `auction-engine`에서 `./gradlew test` 실행. 테스트 결과 XML은 항상 artifact로 업로드하고, 실패했을 때만(`if: failure()`) AI 분석 스크립트 실행. 권한은 `contents: read` / `pull-requests: write`만.
-- **중요한 막힌 점**: 원래 계획은 GitHub Models를 `GITHUB_TOKEN`으로 쓰는 거였는데, 공식 변경 로그(<https://github.blog/changelog/2026-07-30-github-models-is-now-retired/>)를 확인해보니 **GitHub Models가 2026-07-30에 완전히 폐지**됨(playground/추론 API/BYOK 전부 중단). → 지침대로 OpenAI API 방식으로 전환. `OPENAI_API_KEY`는 저장소 Secrets에 직접 등록(코드/대화 어디에도 키 값 없음).
-- `.github/scripts/ai_triage.py`: `build/test-results/test/*.xml`(JUnit)에서 실패한 테스트 이름/메시지만 추려(최대 10건, 건당 500자로 자름) OpenAI Chat Completions API(`gpt-4o-mini`)에 보내고, "실패한 테스트/원인 추정/수정 제안" 형식으로 한국어 답변을 받아 `gh pr comment`로 PR에 등록. 끝에 "🤖 AI 분석 결과이므로 사람이 확인 필요합니다." 문구 고정.
+- **막힌 점 1**: 원래 계획은 GitHub Models를 `GITHUB_TOKEN`으로 쓰는 거였는데, 공식 변경 로그(<https://github.blog/changelog/2026-07-30-github-models-is-now-retired/>)를 확인해보니 **GitHub Models가 2026-07-30에 완전히 폐지**됨(playground/추론 API/BYOK 전부 중단). → 지침대로 OpenAI API 방식으로 1차 구현.
+- **막힌 점 2**: OpenAI API는 무료 등급이 없고 결제수단 등록이 필수라, 결제/구독을 쓸 수 없는 상황이라 다시 바꿔야 했음. → Google Gemini API로 최종 변경. 공식 문서(<https://ai.google.dev/gemini-api/docs/rate-limits>)에 "Free tier → 유료 tier로 전환할 때만 결제수단 등록 필요"라고 명시돼 있어, 무료 등급 자체는 카드 등록 없이 Google 계정만으로 키 발급(<https://aistudio.google.com/apikey>) 가능함을 확인하고 적용.
+- `.github/scripts/ai_triage.py`: `build/test-results/test/*.xml`(JUnit)에서 실패한 테스트 이름/메시지만 추려(최대 10건, 건당 500자로 자름) Gemini API(`gemini-2.5-flash`, `generateContent`)에 보내고, "실패한 테스트/원인 추정/수정 제안" 형식으로 한국어 답변을 받아 `gh pr comment`로 PR에 등록. 끝에 "🤖 AI 분석 결과이므로 사람이 확인 필요합니다." 문구 고정.
 
 ## 5. 로컬 검증
 
@@ -37,7 +38,7 @@
 
 ## 8. 남은 것
 
-- `OPENAI_API_KEY`를 저장소 Secrets에 아직 등록 안 함 — AI 분석 스텝이 실제로 작동하는지는 "일부러 테스트를 깨뜨리는 PR"을 하나 만들어서 확인해야 함(다음 데모 때 시연용으로 남겨둠).
+- `GEMINI_API_KEY`를 저장소 Secrets에 아직 등록 안 함 — AI 분석 스텝이 실제로 작동하는지는 "일부러 테스트를 깨뜨리는 PR"을 하나 만들어서 확인해야 함(다음 데모 때 시연용으로 남겨둠).
 - Actions 로그에 `setup-java@v4` deprecated, Node.js 20 deprecated 경고가 뜨는데 동작엔 지장 없어서 지금은 안 고침 (나중에 `actions/setup-java@v5`로 올리면 사라짐).
 
 ## 알아둘 점 / 한계
