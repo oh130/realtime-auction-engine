@@ -25,9 +25,20 @@
 - `docker compose up -d` (db/redis)로 이 저장소 전용 컨테이너 기동, healthy 확인 후 `cd auction-engine && ./gradlew test` → **전체 통과 (BUILD SUCCESSFUL)**.
 - 검증 끝나고 포트 충돌 안 나게 이 저장소 컨테이너는 내리고, 팀 레포 쪽 컨테이너를 원래대로 복구함.
 
-## 6~7. main push / check-pass 데모
+## 6. main에 push
 
-(이후 기록)
+- `git push origin master:main` — 원격엔 `main` 브랜치가 없었어서 새로 생김. 원래 있던 `master`(옛 README만 있던 상태)는 그대로 두고, 저장소 기본 브랜치를 `main`으로 변경(`gh repo edit --default-branch main`).
+
+## 7. check-pass 데모
+
+- `check-pass` 브랜치 생성, README에 파이프라인 안내 한 줄만 추가 → `main`으로 PR(#1) 생성.
+- GitHub Actions 확인: `test` job의 `Initialize containers`(postgres/redis) → `Run tests` → `Upload test result XML`까지 전부 ✓, 테스트가 통과했으므로 `AI triage on failure` 스텝은 설계대로 스킵(`-`)됨. 1m18s만에 전체 통과.
+- 확인 끝나고 PR은 머지 + 브랜치 삭제로 정리.
+
+## 8. 남은 것
+
+- `OPENAI_API_KEY`를 저장소 Secrets에 아직 등록 안 함 — AI 분석 스텝이 실제로 작동하는지는 "일부러 테스트를 깨뜨리는 PR"을 하나 만들어서 확인해야 함(다음 데모 때 시연용으로 남겨둠).
+- Actions 로그에 `setup-java@v4` deprecated, Node.js 20 deprecated 경고가 뜨는데 동작엔 지장 없어서 지금은 안 고침 (나중에 `actions/setup-java@v5`로 올리면 사라짐).
 
 ## 알아둘 점 / 한계
 
