@@ -68,7 +68,7 @@ def call_gemini(failures):
         method="POST",
     )
 
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=120) as response:
         data = json.load(response)
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
