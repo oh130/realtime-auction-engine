@@ -8,6 +8,7 @@ import glob
 import json
 import os
 import subprocess
+import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -61,16 +62,25 @@ def call_gemini(failures):
         f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
         f"?key={os.environ['GEMINI_API_KEY']}"
     )
-    request = urllib.request.Request(
-        url,
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
 
-    with urllib.request.urlopen(request, timeout=120) as response:
-        data = json.load(response)
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+    # 신규 모델이라 그런지 503(과부하, 일시적)이 종종 난다 - 몇 번 재시도하면 대부분 바로 풀린다.
+    last_error = None
+    for attempt in range(4):
+        request = urllib.request.Request(
+            url, data=body, headers={"Content-Type": "application/json"}, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                data = json.load(response)
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except urllib.error.HTTPError as e:
+            last_error = e
+            if e.code != 503 or attempt == 3:
+                raise
+            wait = 5 * (attempt + 1)
+            print(f"Gemini 503(과부하), {wait}초 후 재시도 ({attempt + 1}/4)")
+            time.sleep(wait)
+    raise last_error
 
 
 def post_pr_comment(body):
