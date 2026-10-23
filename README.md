@@ -37,3 +37,5 @@
 - [#5 DB 스키마 + 입찰 API 명세 + 동시성 처리 착수](https://github.com/ThreeRoun/Realtime-Auction-Service/pull/5)
 - [#13 상품 등록/목록 조회 API + 입찰 등록 API 컨트롤러](https://github.com/ThreeRoun/Realtime-Auction-Service/pull/13)
 - [#24 마감 연장(안티 스나이핑) 로직](https://github.com/ThreeRoun/Realtime-Auction-Service/pull/24)
+
+> 이 저장소에는 PR마다 테스트를 돌리고 실패 시 AI가 원인을 분석해 코멘트를 남기는 파이프라인(`.github/workflows/test-ai-triage.yml`)도 추가돼 있습니다.
