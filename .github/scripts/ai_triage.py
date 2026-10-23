@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 RESULTS_GLOB = "auction-engine/build/test-results/test/*.xml"
 MAX_DETAIL_LEN = 500
 MAX_FAILURES = 10
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-3.8-flash"
 
 
 def collect_failures():
