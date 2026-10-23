@@ -1,0 +1,71 @@
+name: Test with AI Triage
+
+# main으로 향하는 PR마다 auction-engine 테스트를 돌리고, 실패하면 AI가 원인을 분석해
+# PR에 코멘트를 남긴다.
+#
+# GitHub Models(GITHUB_TOKEN으로 쓰는 공식 LLM 연동)는 2026-07-30 완전히 폐지돼서
+# (https://github.blog/changelog/2026-07-30-github-models-is-now-retired/) 대신
+# OpenAI API를 쓴다. 저장소 Secrets에 OPENAI_API_KEY를 직접 등록해야 동작한다.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: auction
+          POSTGRES_PASSWORD: auction
+          POSTGRES_DB: auction
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auction"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Run tests
+        working-directory: auction-engine
+        run: ./gradlew test
+
+      - name: Upload test result XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: auction-engine/build/test-results/test/*.xml
+          if-no-files-found: ignore
+
+      - name: AI triage on failure
+        if: failure()
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 .github/scripts/ai_triage.py
