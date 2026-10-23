@@ -242,8 +242,9 @@ class ProductControllerTest {
 
     @Test
     void 존재하지_않는_상품을_상세조회하면_404를_반환한다() throws Exception {
+        // DEMO: AI 분석 파이프라인 시연용으로 일부러 깨뜨림 (isNotFound -> isOk)
         mockMvc.perform(get("/api/products/{id}", UUID.randomUUID()))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     @Test
